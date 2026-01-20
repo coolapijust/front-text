@@ -1,0 +1,38 @@
+[
+  {
+    "type": "file",
+    "name": "01-项目简介.txt",
+    "path": "01-项目简介.txt",
+    "title": "01 项目简介"
+  },
+  {
+    "type": "file",
+    "name": "02-安装部署.txt",
+    "path": "02-安装部署.txt",
+    "title": "02 安装部署"
+  },
+  {
+    "type": "file",
+    "name": "03-配置指南.txt",
+    "path": "03-配置指南.txt",
+    "title": "03 配置指南"
+  },
+  {
+    "type": "file",
+    "name": "04-使用说明.txt",
+    "path": "04-使用说明.txt",
+    "title": "04 使用说明"
+  },
+  {
+    "type": "file",
+    "name": "05-目录结构.txt",
+    "path": "05-目录结构.txt",
+    "title": "05 目录结构"
+  },
+  {
+    "type": "file",
+    "name": "06-常见问题.txt",
+    "path": "06-常见问题.txt",
+    "title": "06 常见问题"
+  }
+]

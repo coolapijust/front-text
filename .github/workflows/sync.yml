@@ -1,0 +1,53 @@
+name: Sync TXT Files
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'txt/**'
+      - 'config.json'
+      - 'scripts/**'
+      - '.github/workflows/sync.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Dependencies
+        run: |
+          pip install python-docx
+          
+      - name: Run Sync Script
+        run: |
+          echo "[Deploy] 扫描并同步TXT文件..."
+          python scripts/sync.py
+          
+      - name: Commit Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git status
+          git add -A
+          
+          if git diff --cached --quiet; then
+            echo "[Deploy] 无新文件需要同步"
+          else
+            git commit -m "sync: 更新文档 $(date +%Y-%m-%d)"
+            echo "[Deploy] 提交更改"
+            git push
+            echo "[Deploy] 推送完成"
+          fi
