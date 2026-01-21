@@ -4,7 +4,9 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'txt/**'
+      - '**/*.txt'
+      - '**/*.md'
+      - '**/*.docx'
       - 'reader/config.json'
       - 'scripts/**'
       - 'reader/index.html'
@@ -35,6 +37,7 @@ jobs:
             reader/css
             reader/app.js
             reader/index.html
+            reader/config.json
           sparse-checkout-cone-mode: false
 
       - name: Setup Python
