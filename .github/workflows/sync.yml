@@ -11,6 +11,12 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -51,3 +57,37 @@ jobs:
             git push
             echo "[Deploy] 推送完成"
           fi
+
+      - name: Upload Reader Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reader
+          path: reader/
+          retention-days: 1
+
+  deploy:
+    needs: sync
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: reader
+          path: reader
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          static_site: true
+          
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reader
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
