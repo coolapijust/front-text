@@ -7,6 +7,9 @@ on:
       - 'txt/**'
       - 'reader/config.json'
       - 'scripts/**'
+      - 'reader/index.html'
+      - 'reader/css/**'
+      - 'reader/app.js'
       - '.github/workflows/sync-api.yml'
 
 permissions:
@@ -22,27 +25,30 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository (Shallow - Scripts Only)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            reader/css
+            reader/app.js
+            reader/index.html
+          sparse-checkout-cone-mode: false
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Download Files via API
+      - name: Download TXT Files via API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "[Deploy] 使用 GitHub API 下载 txt/md/docx 文件..."
           pip install -q urllib3
           python scripts/download-files.py
-
-      - name: Setup Git Config
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git init
-          git remote add origin https://github.com/${{ github.repository }}.git
-          git fetch origin ${{ github.ref }}
-          git checkout -b main origin/${{ github.ref }}
 
       - name: Run Sync Script
         run: |
@@ -51,14 +57,15 @@ jobs:
 
       - name: Commit Changes
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git status
           git add -A
-
+          
           if git diff --cached --quiet; then
             echo "[Deploy] 无新文件需要同步"
           else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
             git commit -m "sync: 更新文档 $(date +%Y-%m-%d)"
             echo "[Deploy] 提交更改"
             git push
