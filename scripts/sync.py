@@ -161,8 +161,9 @@ def convert_markdown(text):
             html.append(f'<ul>{"".join(list_items)}</ul>')
         elif re.match(r'^\d+\.\s', trimmed):
             list_items = []
+            ordered_pattern = r'^\d+\.\s*'
             while i < len(lines) and re.match(r'^\d+\.\s', lines[i].strip()):
-                list_items.append(f'<li>{process_inline(re.sub(r"^\d+\.\s*", "", lines[i].strip()))}</li>')
+                list_items.append(f'<li>{process_inline(re.sub(ordered_pattern, "", lines[i].strip()))}</li>')
                 i += 1
             html.append(f'<ol>{"".join(list_items)}</ol>')
         elif trimmed.startswith('|') and '|' in trimmed:
