@@ -10,6 +10,8 @@
   const themeToggle = document.getElementById('theme-toggle');
   const sidebarToggleCollapsed = document.getElementById('sidebar-toggle-collapsed');
   const themeToggleCollapsed = document.getElementById('theme-toggle-collapsed');
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
   
   let allDocs = [];
   let searchTimeout = null;
@@ -192,6 +194,68 @@
     toggleTheme();
   });
 
+  function isMobile() {
+    return window.innerWidth <= 768;
+  }
+
+  function toggleMobileSidebar() {
+    if (!isMobile()) return;
+    const isOpen = sidebar.classList.contains('mobile-open');
+    if (isOpen) {
+      closeMobileSidebar();
+    } else {
+      sidebar.classList.add('mobile-open');
+      document.body.classList.add('sidebar-open');
+    }
+  }
+
+  function closeMobileSidebar() {
+    sidebar.classList.remove('mobile-open');
+    document.body.classList.remove('sidebar-open');
+  }
+
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMobileSidebar();
+    });
+  }
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => {
+      closeMobileSidebar();
+    });
+  }
+
+  window.addEventListener('resize', () => {
+    if (!isMobile()) {
+      closeMobileSidebar();
+    }
+  });
+
+  let lastScrollY = 0;
+  let scrollTimeout = null;
+  
+  window.addEventListener('scroll', () => {
+    if (!isMobile()) return;
+    const currentScrollY = window.scrollY;
+    if (mobileMenuBtn) {
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        mobileMenuBtn.classList.add('hidden');
+      } else {
+        mobileMenuBtn.classList.remove('hidden');
+      }
+    }
+    lastScrollY = currentScrollY;
+    
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      if (mobileMenuBtn) {
+        mobileMenuBtn.classList.remove('hidden');
+      }
+    }, 1000);
+  });
+
   function toggleTheme() {
     document.body.classList.toggle('dark');
     localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
@@ -255,6 +319,10 @@
         }
         window.location.hash = path;
         window.scrollTo({top: 0, behavior: 'smooth'});
+        
+        if (isMobile()) {
+          closeMobileSidebar();
+        }
         
         if (typeof mermaid !== 'undefined' && document.querySelector('.mermaid')) {
           mermaid.run();

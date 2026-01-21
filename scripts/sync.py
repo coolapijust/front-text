@@ -14,6 +14,7 @@ from datetime import datetime
 from fnmatch import fnmatch, fnmatchcase
 
 SKIP_NAMES = ['.git', '__pycache__', 'node_modules', '.github', 'reader', 'scripts']
+ALLOWED_EXTENSIONS = {'.txt', '.md', '.docx'}
 
 CONFIG_FILE = Path(__file__).parent.parent / 'reader' / 'config.json'
 _cached_config = None
@@ -75,6 +76,9 @@ def should_exclude(file_path, source_dir):
     if match_patterns(rel_path, get_exclude_patterns()):
         return True
     if rel_path.name in get_exclude_files():
+        return True
+    if file_path.suffix not in ALLOWED_EXTENSIONS:
+        print(f'[Sync] 跳过(不支持类型): {rel_path}')
         return True
     return False
 
