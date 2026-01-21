@@ -1,6 +1,6 @@
 {
   "source_dir": "txt",
-  "site_title": "文档阅读器",
+  "site_title": "文档前端展示引擎",
   "sidebar_title": "文档目录",
   "theme": "light",
   "max_content_width": 900,

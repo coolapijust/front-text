@@ -5,7 +5,7 @@ on:
     branches: [main, master]
     paths:
       - 'txt/**'
-      - 'config.json'
+      - 'reader/config.json'
       - 'scripts/**'
       - '.github/workflows/sync.yml'
 
