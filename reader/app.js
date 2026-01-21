@@ -101,7 +101,7 @@
       const state = isCollapsed ? 'collapsed' : 'expanded';
       const arrow = isCollapsed ? '▶' : '▼';
       let html = `<li class="folder" data-folder-id="${folderId}" data-state="${state}">
-        <span class="folder-name">${item.name}<span class="folder-arrow">${arrow}</span></span>
+        <span class="folder-name">${escapeHtml(item.name)}<span class="folder-arrow">${arrow}</span></span>
       </li>`;
       if (item.children && item.children.length > 0) {
         html += `<ul class="folder-children" data-parent="${folderId}" style="display:${isCollapsed ? 'none' : 'block'}">`;
@@ -113,7 +113,9 @@
       return html;
     }
     const indent = depth > 0 ? `style="padding-left: ${depth * 20}px"` : '';
-    return `<li class="sub-item" ${indent}><a onclick="window.loadDoc('${item.path}')">${item.title}</a></li>`;
+    const safePath = encodeURIComponent(item.path);
+    const safeTitle = escapeHtml(item.title);
+    return `<li class="sub-item" ${indent}><a onclick="window.loadDoc('${safePath}')">${safeTitle}</a></li>`;
   }
 
   function attachFolderListeners() {
@@ -194,6 +196,17 @@
     document.body.classList.toggle('dark');
     localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     updateThemeIcons();
+    
+    if (typeof mermaid !== 'undefined' && document.querySelector('.mermaid')) {
+      const isDark = document.body.classList.contains('dark');
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: isDark ? 'dark' : 'default'
+      });
+      mermaid.run({
+        querySelector: '.mermaid'
+      });
+    }
   }
 
   function updateThemeIcons() {
@@ -308,6 +321,18 @@
     window.scrollTo({top: 0, behavior: 'smooth'});
   });
 
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 200) {
+      backToTop.style.display = 'block';
+    } else {
+      backToTop.style.display = 'none';
+    }
+  });
+
+  if (window.scrollY > 200) {
+    backToTop.style.display = 'block';
+  }
+
   window.addEventListener('hashchange', handleHash);
 
   loadConfig().then(() => {
@@ -316,9 +341,10 @@
     initTheme();
     
     if (typeof mermaid !== 'undefined') {
+      const isDark = document.body.classList.contains('dark');
       mermaid.initialize({
         startOnLoad: true,
-        theme: 'default'
+        theme: isDark ? 'dark' : 'default'
       });
     }
   });

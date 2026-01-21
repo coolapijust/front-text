@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>文档阅读器</title>
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    (function() {
+      var theme = localStorage.getItem('theme');
+      if (theme === 'dark') {
+        document.body.classList.add('dark');
+      }
+    })();
+  </script>
   <script src="https://s4.zstatic.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 </head>
 <body>
@@ -49,7 +57,11 @@
       <p>请从左侧目录选择文档进行阅读。</p>
     </div>
   </main>
-  <button id="back-to-top" title="返回顶部">↑</button>
+  <button id="back-to-top" title="返回顶部">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M18 15l-6-6-6 6"/>
+    </svg>
+  </button>
   <script src="app.js"></script>
 </body>
 </html>

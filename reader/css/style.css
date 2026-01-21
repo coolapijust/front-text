@@ -417,29 +417,42 @@ body.dark .content tr:hover {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  width: 40px;
-  height: 40px;
-  background: #0366d6;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #0366d6, #0256b9);
   color: white;
   border: none;
-  border-radius: 50%;
+  border-radius: 12px;
   cursor: pointer;
-  display: none;
-  font-size: 18px;
   z-index: 1000;
-  transition: background-color 0.2s;
+  box-shadow: 0 4px 12px rgba(3, 102, 214, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 #back-to-top:hover {
-  background: #0256b9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(3, 102, 214, 0.4);
+  background: linear-gradient(135deg, #0256b9, #0366d6);
+}
+
+#back-to-top svg {
+  width: 20px;
+  height: 20px;
+  stroke: white;
+  stroke-width: 2.5;
 }
 
 body.dark #back-to-top {
-  background: #1f6feb;
+  background: linear-gradient(135deg, #1f6feb, #388bfd);
+  box-shadow: 0 4px 12px rgba(56, 139, 253, 0.3);
 }
 
 body.dark #back-to-top:hover {
-  background: #58a6ff;
+  box-shadow: 0 6px 20px rgba(56, 139, 253, 0.5);
+  background: linear-gradient(135deg, #388bfd, #1f6feb);
 }
 
 @media (max-width: 768px) {

@@ -12,9 +12,51 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from fnmatch import fnmatch, fnmatchcase
-from config import get_source_dir, get_docs_dir, get_exclude_patterns, get_exclude_files
 
 SKIP_NAMES = ['.git', '__pycache__', 'node_modules', '.github', 'reader', 'scripts']
+
+CONFIG_FILE = Path(__file__).parent.parent / 'reader' / 'config.json'
+_cached_config = None
+
+def load_config():
+    global _cached_config
+    if _cached_config is not None:
+        return _cached_config
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                _cached_config = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f'[Sync] 配置加载错误: {e}')
+            _cached_config = {}
+    else:
+        _cached_config = {}
+    return _cached_config
+
+def get_source_dir():
+    return load_config().get('source_dir', 'txt')
+
+def get_docs_dir():
+    root_dir = Path(__file__).parent.parent
+    return root_dir / 'reader' / 'docs'
+
+def get_exclude_patterns():
+    return load_config().get('exclude_patterns', [])
+
+def get_exclude_files():
+    return load_config().get('exclude_files', [])
+
+def get_site_title():
+    return load_config().get('site_title', '文档阅读器')
+
+def get_sidebar_title():
+    return load_config().get('sidebar_title', '文档目录')
+
+def get_enable_search():
+    return load_config().get('enable_search', True)
+
+def get_home_page():
+    return load_config().get('home_page', '')
 
 def should_skip(path):
     return any(path.name.startswith(s) for s in SKIP_NAMES)
@@ -32,7 +74,7 @@ def should_exclude(file_path, source_dir):
     rel_path = file_path.relative_to(source_dir)
     if match_patterns(rel_path, get_exclude_patterns()):
         return True
-    if str(rel_path) in get_exclude_files():
+    if rel_path.name in get_exclude_files():
         return True
     return False
 
@@ -430,11 +472,18 @@ def main():
     print(f'[Sync] 清理已删除的文件...')
     cleanup_orphaned_files(source_dir, docs_dir)
     
-    items = scan_directory(source_dir, source_dir)
+    items = []
+    if source_dir.exists():
+        items = [{
+            'type': 'folder',
+            'name': source_dir_name,
+            'children': scan_directory(source_dir, source_dir)
+        }]
+    
     copy_and_convert_files(source_dir, docs_dir)
     generate_index(items, index_file)
     
-    print(f'[Sync] 完成！共同步 {len(items)} 个文档')
+    print(f'[Sync] 完成！共同步 {len(items[0]["children"]) if items else 0} 个文档')
 
 if __name__ == '__main__':
     main()

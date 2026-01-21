@@ -1,51 +1,109 @@
-# 安装部署
+# 安装部署指南
 
-本章节详细介绍文档阅读器的多种部署方式，您可以根据实际需求选择最适合的方案。无论您是个人使用还是团队协作，都能找到合适的部署方法。
+## 环境要求
 
-## 快速开始
+- Python 3.8+
+- pip 包管理器
+- Git（可选，用于版本控制）
 
-### 本地运行
+## 本地安装
 
-对于本地预览和开发调试，最简单的方式是使用 Python 内置的 HTTP 服务器。在项目根目录下执行以下命令即可启动本地服务：
+### 1. 克隆项目
 
-首先确保您的项目目录结构如下所示。reader 目录包含了所有前端文件，txt 目录用于存放源文档，scripts 目录包含同步脚本。确认目录结构正确后，打开终端进入项目根目录，运行启动命令。
+```bash
+git clone https://github.com/yourusername/doc-reader.git
+cd doc-reader
+```
 
-启动服务后，在浏览器中访问 http://localhost:8080 即可查看文档阅读器。如果您需要修改默认端口，可以在启动命令中指定，例如 python -m http.server 8081 将服务运行在 8081 端口。这种方式适合在开发过程中实时预览文档效果。
+### 2. 安装依赖
 
-### 使用其他静态服务器
+```bash
+pip install python-docx
+```
 
-如果您习惯使用其他静态服务器工具，也可以选择 npm 的 serve 包、Node.js 的 http-server 或 PHP 的内置服务器。以 serve 为例，全局安装后直接运行 serve reader 即可启动服务。这些工具通常提供热重载功能，在开发过程中更加便捷。
+### 3. 启动服务
 
-## 托管平台部署
+```bash
+python -m http.server 8080
+```
 
-### GitHub Pages 部署
+### 4. 访问应用
 
-GitHub Pages 是托管静态网站的理想选择，与本项目完美兼容。首先，在 GitHub 上创建一个新仓库，将项目文件推送到仓库的 main 分支。然后进入仓库设置，找到 Pages 选项卡，将 Source 设置为 main 分支并保存。几分钟内，您的文档网站就会上线运行。
+打开浏览器访问：http://localhost:8080
 
-部署完成后，访问 https://您的用户名.github.io/仓库名 即可查看网站。如果您的仓库名符合特定格式（如 username.github.io），则可以直接通过 https://username.github.io 访问。GitHub Pages 支持自定义域名，您可以在设置中绑定自己的域名。
+## Vercel 部署
 
-### Netlify 部署
+### 1. 准备项目
 
-Netlify 提供了更加现代化的静态网站托管体验。登录 Netlify 后，选择"添加新站点"，从 Git 仓库导入您的项目。Netlify 会自动识别项目类型，构建命令留空，发布目录设置为 reader。配置完成后点击部署，Netlify 会自动构建并发布您的网站。
+确保项目结构完整：
 
-Netlify 的优势在于支持自动部署，当您向 Git 仓库推送更新时，网站会自动重新部署。此外，Netlify 还提供表单功能、重定向规则、边缘函数等高级功能，满足更复杂的部署需求。
+```
+├── scripts/
+│   └── sync.py
+├── txt/
+│   └── 文档文件
+├── reader/
+│   ├── index.html
+│   ├── app.js
+│   └── css/
+├── vercel.json
+└── README.md
+```
 
-### Vercel 部署
+### 2. 创建 vercel.json
 
-Vercel 是另一个优秀的静态托管平台，特别适合前端项目。安装 Vercel CLI 后，在项目根目录执行 vercel deploy --prod 即可完成部署。Vercel 会自动检测项目类型并配置构建参数，无需额外设置。
+```json
+{
+  "buildCommand": "python scripts/sync.py",
+  "outputDirectory": "reader",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
+```
 
-Vercel 同样支持从 GitHub、GitLab、Bitbucket 等平台直接导入仓库，实现自动化部署。每次代码更新后，Vercel 都会自动构建并发布新版本，同时保留历史版本供回滚使用。
+### 3. 部署命令
 
-## 自动同步配置
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
 
-为了简化文档更新流程，您可以配置自动同步功能。项目的 scripts 目录包含了 sync.py 脚本，用于将 txt 目录下的文档同步到 reader/docs 目录，并自动更新索引文件。
+## GitHub Pages 部署
 
-运行同步脚本前，请确保已安装 python-docx 库，该库用于处理 Word 文档。通过 pip install python-docx 命令即可完成安装。安装完成后，执行 python scripts/sync.py 脚本，系统会自动扫描 txt 目录，将所有文档复制或转换为 HTML 格式，并更新 reader/index.json 索引文件。
+### 1. 推送代码
 
-对于使用 Git 托管的项目，您可以在仓库中配置 GitHub Actions，在每次代码推送时自动运行同步脚本。这样，当您更新 txt 目录中的文档并推送到仓库时，网站内容会自动更新，无需手动干预。
+```bash
+git add .
+git commit -m "Initial commit"
+git push origin main
+```
 
-## 自定义域名配置
+### 2. 启用 Pages
 
-如果您拥有自己的域名，可以将其指向文档网站。不同托管平台的配置方式略有差异，但基本思路相同。在域名服务商的控制台中，将域名的 CNAME 记录指向托管平台提供的域名，或添加 A 记录指向托管服务器的 IP 地址。
+在 GitHub 仓库设置中启用 GitHub Pages，选择 `gh-pages` 分支。
 
-配置完成后，在托管平台的域名设置中添加自定义域名，并按照提示完成域名验证。对于使用 HTTPS 的网站，托管平台通常会免费提供 SSL 证书，自动完成 HTTPS 化配置。配置自定义域名后，您就可以通过自己的域名访问文档网站，提升品牌形象和专业度。
+## Docker 部署（可选）
+
+### Dockerfile
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY . .
+
+RUN pip install python-docx
+
+EXPOSE 8080
+CMD ["python", "-m", "http.server", "8080"]
+```
+
+### 构建运行
+
+```bash
+docker build -t doc-reader .
+docker run -p 8080:8080 doc-reader
+```
