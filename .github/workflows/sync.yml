@@ -22,10 +22,28 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug Info
+        run: |
+          echo "=== Debug Info ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}
+          echo "SHA: ${{ github.sha }}"
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
+          clean: true
+          
+      - name: Show Directory Structure
+        run: |
+          echo "=== Repository Structure ==="
+          ls -la
+          echo "=== Reader Directory ==="
+          ls -la reader/ 2>/dev/null || echo "reader/ not found"
+          echo "=== Txt Directory ==="
+          ls -la txt/ 2>/dev/null || echo "txt/ not found"
           
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -39,6 +57,10 @@ jobs:
       - name: Run Sync Script
         run: |
           echo "[Deploy] 扫描并同步TXT文件..."
+          echo "Python version:"
+          python --version
+          echo "Script exists:"
+          ls -la scripts/sync.py
           python scripts/sync.py
           
       - name: Commit Changes
