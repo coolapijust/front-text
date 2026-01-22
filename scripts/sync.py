@@ -21,9 +21,8 @@ CONFIG_FILE = Path(__file__).parent.parent / 'reader' / 'config.json'
 is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true' or os.environ.get('CI') == 'true'
 
 if is_github_actions:
-    current_dir = Path.cwd()
-    if 'tools' in str(current_dir).lower():
-        CONFIG_FILE = current_dir / 'reader' / 'config.json'
+    sync_root = os.environ.get('SYNC_ROOT_DIR', Path.cwd())
+    CONFIG_FILE = Path(sync_root) / 'reader' / 'config.json'
 
 def log_info(msg, module='Sync'):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

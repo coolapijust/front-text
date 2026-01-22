@@ -12,6 +12,7 @@
   const themeToggleCollapsed = document.getElementById('theme-toggle-collapsed');
   const mobileMenuBtn = document.getElementById('mobile-menu-btn');
   const sidebarOverlay = document.getElementById('sidebar-overlay');
+  const readingProgress = document.getElementById('reading-progress');
   
   let allDocs = [];
   let searchTimeout = null;
@@ -119,7 +120,7 @@
       const state = isCollapsed ? 'collapsed' : 'expanded';
       const arrow = isCollapsed ? '▶' : '▼';
       let html = `<li class="folder" data-folder-id="${folderId}" data-state="${state}">
-        <span class="folder-name">${escapeHtml(item.name)}<span class="folder-arrow">${arrow}</span></span>
+        <span class="folder-name"><span class="folder-icon">📁</span>${escapeHtml(item.name)}<span class="folder-arrow">${arrow}</span></span>
       </li>`;
       if (item.children && item.children.length > 0) {
         html += `<ul class="folder-children" data-parent="${folderId}" style="display:${isCollapsed ? 'none' : 'block'}">`;
@@ -133,7 +134,7 @@
     const indent = depth > 0 ? `style="padding-left: ${depth * 20}px"` : '';
     const safePath = encodeURIComponent(item.path);
     const safeTitle = escapeHtml(item.title);
-    return `<li class="sub-item" ${indent}><a onclick="window.loadDoc('${safePath}')">${safeTitle}</a></li>`;
+    return `<li class="sub-item" ${indent}><a onclick="window.loadDoc('${safePath}')"><span class="file-icon">📄</span>${safeTitle}</a></li>`;
   }
 
   function attachFolderListeners() {
@@ -251,18 +252,26 @@
 
   let lastScrollY = 0;
   let scrollTimeout = null;
+  let ticking = false;
   
   window.addEventListener('scroll', () => {
     if (!isMobile()) return;
-    const currentScrollY = window.scrollY;
-    if (mobileMenuBtn) {
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        mobileMenuBtn.classList.add('hidden');
-      } else {
-        mobileMenuBtn.classList.remove('hidden');
-      }
+    
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
+        if (mobileMenuBtn) {
+          if (currentScrollY > lastScrollY && currentScrollY > 100) {
+            mobileMenuBtn.classList.add('hidden');
+          } else {
+            mobileMenuBtn.classList.remove('hidden');
+          }
+        }
+        lastScrollY = currentScrollY;
+        ticking = false;
+      });
+      ticking = true;
     }
-    lastScrollY = currentScrollY;
     
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
@@ -326,9 +335,21 @@
       .then(content => {
         const isHtml = path.endsWith('.html');
         if (isHtml) {
+          viewer.style.opacity = '0';
+          viewer.style.transform = 'translateY(10px)';
           viewer.innerHTML = content;
+          setTimeout(() => {
+            viewer.style.opacity = '1';
+            viewer.style.transform = 'translateY(0)';
+          }, 50);
         } else {
+          viewer.style.opacity = '0';
+          viewer.style.transform = 'translateY(10px)';
           viewer.innerHTML = renderContent(content);
+          setTimeout(() => {
+            viewer.style.opacity = '1';
+            viewer.style.transform = 'translateY(0)';
+          }, 50);
         }
         window.location.hash = path;
         window.scrollTo({top: 0, behavior: 'smooth'});
@@ -350,7 +371,47 @@
       const html = md.render(text);
       const endTime = performance.now();
       console.log('[Render] Markdown 解析完成，耗时:', (endTime - startTime).toFixed(2), 'ms');
-      return html;
+      
+      const processedHtml = html.replace(/<\/p>\s*<p>/g, '<br>');
+      
+      setTimeout(() => {
+        const codeBlocks = document.querySelectorAll('.content pre.hljs');
+        
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const block = entry.target;
+              if (!block.dataset.initialized) {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = '复制';
+                copyBtn.onclick = () => {
+                  const code = block.querySelector('code');
+                  if (code) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                      copyBtn.textContent = '已复制';
+                      setTimeout(() => {
+                        copyBtn.textContent = '复制';
+                      }, 2000);
+                    });
+                  }
+                };
+                block.appendChild(copyBtn);
+                block.dataset.initialized = 'true';
+              }
+            }
+          });
+        }, {
+          rootMargin: '50px',
+          threshold: 0.1
+        });
+        
+        codeBlocks.forEach(block => {
+          observer.observe(block);
+        });
+      }, 100);
+      
+      return processedHtml;
     } catch (error) {
       console.error('[Render] Markdown 解析失败:', error);
       return `<p>Markdown 解析失败: ${error.message}</p>`;
@@ -378,11 +439,24 @@
     window.scrollTo({top: 0, behavior: 'smooth'});
   });
 
+  let progressTicking = false;
+  
   window.addEventListener('scroll', () => {
-    if (window.scrollY > 200) {
-      backToTop.style.display = 'block';
-    } else {
-      backToTop.style.display = 'none';
+    if (!progressTicking) {
+      window.requestAnimationFrame(() => {
+        if (window.scrollY > 200) {
+          backToTop.style.display = 'block';
+        } else {
+          backToTop.style.display = 'none';
+        }
+        
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const scrollPercent = (scrollTop / docHeight) * 100;
+        readingProgress.style.width = scrollPercent + '%';
+        progressTicking = false;
+      });
+      progressTicking = true;
     }
   });
 

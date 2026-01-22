@@ -7,7 +7,7 @@
 body {
   display: flex;
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   line-height: 1.8;
   color: #24292e;
   background: #f6f8fa;
@@ -151,6 +151,25 @@ body.dark .sidebar .folder:hover {
   gap: 4px;
 }
 
+.sidebar .folder-icon {
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.sidebar .folder:hover .folder-icon {
+  transform: scale(1.1);
+}
+
+.sidebar .file-icon {
+  font-size: 14px;
+  margin-right: 4px;
+  transition: transform 0.2s;
+}
+
+.sidebar .sub-item:hover .file-icon {
+  transform: scale(1.1);
+}
+
 .sidebar .folder-arrow {
   font-size: 10px;
   color: #586069;
@@ -159,9 +178,6 @@ body.dark .sidebar .folder:hover {
 
 body.dark .sidebar .folder-arrow {
   color: #8b949e;
-}
-
-.sidebar .sub-item {
 }
 
 .sidebar-footer {
@@ -256,6 +272,20 @@ body.dark .sidebar-collapsed-btns {
   padding: 40px 60px;
   max-width: 900px;
   transition: margin-left 0.3s ease, max-width 0.3s ease;
+  animation: fadeIn 0.3s ease-in;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 body.dark .content {
@@ -286,10 +316,43 @@ body.dark .content pre {
   border-radius: 6px;
   overflow-x: auto;
   margin: 16px 0;
+  position: relative;
 }
 
 body.dark .content pre.hljs {
   background: #161b22;
+}
+
+.content pre .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #0366d6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+body.dark .content pre .copy-btn {
+  background: #1f6feb;
+}
+
+.content pre:hover .copy-btn {
+  opacity: 1;
+}
+
+.content pre .copy-btn:hover {
+  background: #0256b9;
+}
+
+body.dark .content pre .copy-btn:hover {
+  background: #388bfd;
 }
 
 .content code {
@@ -368,6 +431,13 @@ body.dark .content s {
 
 .content p {
   margin: 16px 0;
+  line-height: 1.8;
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+.content p + p {
+  margin-top: 12px;
 }
 
 .content h1,
@@ -403,10 +473,12 @@ body.dark .content h3 {
 .content ol {
   margin: 16px 0;
   padding-left: 24px;
+  line-height: 1.8;
 }
 
 .content li {
-  margin: 4px 0;
+  margin: 8px 0;
+  line-height: 1.8;
 }
 
 .content hr {
@@ -521,6 +593,23 @@ body.dark #back-to-top {
 body.dark #back-to-top:hover {
   box-shadow: 0 6px 20px rgba(56, 139, 253, 0.5);
   background: linear-gradient(135deg, #388bfd, #1f6feb);
+}
+
+.reading-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: linear-gradient(90deg, #0366d6, #58a6ff);
+  z-index: 1001;
+  transition: width 0.1s ease-out;
+  box-shadow: 0 2px 4px rgba(3, 102, 214, 0.2);
+}
+
+body.dark .reading-progress-bar {
+  background: linear-gradient(90deg, #1f6feb, #388bfd);
+  box-shadow: 0 2px 4px rgba(56, 139, 253, 0.2);
 }
 
 .mobile-menu-btn {

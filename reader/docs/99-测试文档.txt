@@ -76,7 +76,7 @@ npm run dev
 
 ## 6. 图片
 
-![示例图片](https://via.placeholder.com/300x200)
+![示例图片](https://placehold.co/300x200/0366d6/ffffff?text=示例图片)
 
 ## 7. 引用
 
