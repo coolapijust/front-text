@@ -17,25 +17,45 @@ SKIP_NAMES = ['.git', '__pycache__', 'node_modules', '.github', 'reader', 'scrip
 ALLOWED_EXTENSIONS = {'.txt', '.md', '.docx'}
 
 CONFIG_FILE = Path(__file__).parent.parent / 'reader' / 'config.json'
-_cached_config = None
+
+is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true' or os.environ.get('CI') == 'true'
+
+if is_github_actions:
+    current_dir = Path.cwd()
+    if 'tools' in str(current_dir).lower():
+        CONFIG_FILE = current_dir / 'reader' / 'config.json'
+
+def log_info(msg, module='Sync'):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f'[{module}][{timestamp}] {msg}')
+
+def log_error(msg, module='Sync'):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f'[{module}][{timestamp}] [ERROR] {msg}')
+
+_config_cache = None
 
 def load_config():
-    global _cached_config
-    if _cached_config is not None:
-        return _cached_config
+    global _config_cache
+    if _config_cache is not None:
+        return _config_cache
+    
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                _cached_config = json.load(f)
+                config = json.load(f)
+            log_info(f'配置文件加载成功: {CONFIG_FILE}')
+            _config_cache = config
+            return config
         except (json.JSONDecodeError, IOError) as e:
-            print(f'[Sync] 配置加载错误: {e}')
-            _cached_config = {}
+            log_error(f'配置文件加载错误: {e}')
+            return {}
     else:
-        _cached_config = {}
-    return _cached_config
+        log_error(f'配置文件不存在: {CONFIG_FILE}')
+        return {}
 
 def get_source_dir():
-    return load_config().get('source_dir', 'txt')
+    return load_config().get('source_dir', '')
 
 def get_docs_dir():
     root_dir = Path(__file__).parent.parent
@@ -59,6 +79,9 @@ def get_enable_search():
 def get_home_page():
     return load_config().get('home_page', '')
 
+def get_github_repo():
+    return load_config().get('github_repo', '')
+
 def should_skip(path):
     return any(path.name.startswith(s) for s in SKIP_NAMES)
 
@@ -78,7 +101,7 @@ def should_exclude(file_path, source_dir):
     if rel_path.name in get_exclude_files():
         return True
     if file_path.suffix not in ALLOWED_EXTENSIONS:
-        print(f'[Sync] 跳过(不支持类型): {rel_path}')
+        log_info(f'跳过(不支持类型): {rel_path}', 'Sync-Filter')
         return True
     return False
 
@@ -89,7 +112,7 @@ def process_inline(text):
     text = escape_html(text)
     text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
     text = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', text)
-    text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+    text = re.sub(r'\`([^`]+)\`', r'<code>\1</code>', text)
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', text)
     text = re.sub(r'(?<![\("])(https?://[^\s<">]+)', r'<a href="\1" target="_blank">\1</a>', text)
     text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img src="\2" alt="\1">', text)
@@ -133,29 +156,9 @@ def convert_markdown(text):
             while code_end < len(lines) and not lines[code_end].rstrip().startswith('```'):
                 code_end += 1
             
-            # 支持Mermaid图表（gantt、flowchart TD、graph等）
-            if lang == 'mermaid' or lang.startswith('gantt') or lang.startswith('flowchart') or lang.startswith('graph'):
-                # 将所有图表类型统一转换为标准mermaid格式
-                content_lines = lines[code_start:code_end]
-                
-                if lang == 'mermaid':
-                    # 如果已经是 ```mermaid 标签，直接使用内容
-                    mermaid_code = '\n'.join(content_lines)
-                else:
-                    # 对于特定图表类型，需要将图表类型添加到代码开头
-                    # 因为当使用 ```flowchart TD 时，图表类型不在代码内容中
-                    mermaid_code = lang + '\n' + '\n'.join(content_lines)
-                
-                # 确保代码格式正确
-                mermaid_code = mermaid_code.strip()
-                # 添加mermaid容器
-                html.append(f'<div class="mermaid">{mermaid_code}</div>')
-            else:
-                # 对于普通代码块，使用转义后的代码
-                code_lines = [escape_html(line) for line in lines[code_start:code_end]]
-                html.append(f'<pre><code class="language-{lang}">{"<br>".join(code_lines)}</code></pre>')
+            code_lines = [escape_html(line) for line in lines[code_start:code_end]]
+            html.append(f'<pre><code class="language-{lang}">{"<br>".join(code_lines)}</code></pre>')
             
-            # 跳过结束标记
             i = code_end + 1 if code_end < len(lines) else code_end
         elif trimmed.startswith('- '):
             list_items = []
@@ -256,18 +259,15 @@ def convert_docx(docx_path):
             min_size, max_size = 12, 24
         
         def get_level(size):
-            # 计算平均字号，只有明显大于平均字号的才识别为标题
             avg_size = sum(all_sizes) / len(all_sizes) if all_sizes else 12
-            
-            # 严格区分标题和普通段落（解决Word文档全文标题化问题）
-            if size > avg_size + 3.0:  # 主标题
+            if size > avg_size + 3.0:
                 return 1
-            elif size > avg_size + 2.0:  # 二级标题
+            elif size > avg_size + 2.0:
                 return 2
-            elif size > avg_size + 1.0:  # 三级标题
+            elif size > avg_size + 1.0:
                 return 3
             else:
-                return 0  # 普通段落
+                return 0
         
         html = []
         for para in doc.paragraphs:
@@ -300,15 +300,23 @@ def convert_docx(docx_path):
         
         return '\n'.join(html)
     except ImportError:
+        log_error('请安装 python-docx 库: pip install python-docx', 'Sync-DOCX')
         raise ImportError('请安装 python-docx 库: pip install python-docx')
+    except Exception as e:
+        log_error(f'Word 文档转换失败: {e}', 'Sync-DOCX')
+        raise
 
 def render_content(content, file_path):
-    if file_path.suffix == '.md':
-        return convert_markdown(content)
-    elif file_path.suffix == '.docx':
-        return convert_docx(file_path)
-    else:
-        return convert_markdown(content)
+    try:
+        if file_path.suffix == '.md':
+            return convert_markdown(content)
+        elif file_path.suffix == '.docx':
+            return convert_docx(file_path)
+        else:
+            return convert_markdown(content)
+    except Exception as e:
+        log_error(f'内容渲染失败: {file_path} - {e}', 'Sync-Render')
+        raise
 
 def scan_directory(source_dir, root_dir=None):
     if root_dir is None:
@@ -327,7 +335,7 @@ def scan_directory(source_dir, root_dir=None):
                 items.append({'type': 'folder', 'name': path.name, 'children': children})
         elif path.is_file():
             if should_exclude(path, root_dir):
-                print(f'[Sync] 排除: {path.relative_to(root_dir)}')
+                log_info(f'排除: {path.relative_to(root_dir)}', 'Sync-Scan')
                 continue
             if path.suffix in ['.txt', '.md', '.docx']:
                 rel_path = path.relative_to(root_dir)
@@ -344,7 +352,6 @@ def scan_directory(source_dir, root_dir=None):
     return items
 
 def cleanup_orphaned_files(source_dir, dest_dir):
-    """清理 docs 目录中已删除源文件对应的目标文件"""
     source_path = Path(source_dir)
     dest_path = Path(dest_dir)
     
@@ -369,17 +376,23 @@ def cleanup_orphaned_files(source_dir, dest_dir):
         rel_path = html_file.relative_to(dest_path)
         rel_str = str(rel_path).replace('\\', '/')
         if rel_str not in valid_files:
-            html_file.unlink()
-            print(f'[Sync] 删除: {rel_str}')
-            deleted_count += 1
+            try:
+                html_file.unlink()
+                log_info(f'删除: {rel_str}', 'Sync-Cleanup')
+                deleted_count += 1
+            except Exception as e:
+                log_error(f'删除文件失败: {rel_str} - {e}', 'Sync-Cleanup')
     
     for txt_file in dest_path.rglob('*.txt'):
         rel_path = txt_file.relative_to(dest_path)
         rel_str = str(rel_path).replace('\\', '/')
         if rel_str not in valid_files:
-            txt_file.unlink()
-            print(f'[Sync] 删除: {rel_str}')
-            deleted_count += 1
+            try:
+                txt_file.unlink()
+                log_info(f'删除: {rel_str}', 'Sync-Cleanup')
+                deleted_count += 1
+            except Exception as e:
+                log_error(f'删除文件失败: {rel_str} - {e}', 'Sync-Cleanup')
     
     def remove_empty_dirs(dir_path):
         for child in sorted(dir_path.iterdir(), reverse=True):
@@ -387,18 +400,23 @@ def cleanup_orphaned_files(source_dir, dest_dir):
                 remove_empty_dirs(child)
                 try:
                     child.rmdir()
-                    print(f'[Sync] 删除空目录: {child.relative_to(dest_path)}')
+                    log_info(f'删除空目录: {child.relative_to(dest_path)}', 'Sync-Cleanup')
                 except OSError:
                     pass
     
     remove_empty_dirs(dest_path)
     
     if deleted_count > 0:
-        print(f'[Sync] 清理完成，共删除 {deleted_count} 个文件')
+        log_info(f'清理完成，共删除 {deleted_count} 个文件', 'Sync-Cleanup')
 
 def copy_and_convert_files(source_dir, dest_dir):
     dest_dir.mkdir(parents=True, exist_ok=True)
     source_path = Path(source_dir)
+    
+    txt_count = 0
+    md_count = 0
+    docx_count = 0
+    error_count = 0
     
     for path in source_path.rglob('*.txt'):
         if should_exclude(path, source_path):
@@ -407,10 +425,15 @@ def copy_and_convert_files(source_dir, dest_dir):
         dest_path = dest_dir / rel_path
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         if dest_path.exists() and dest_path.stat().st_mtime >= path.stat().st_mtime:
-            print(f'[Sync] 跳过(未修改): {rel_path}')
+            log_info(f'跳过(未修改): {rel_path}', 'Sync-TXT')
         else:
-            shutil.copy2(path, dest_path)
-            print(f'[Sync] 复制: {rel_path}')
+            try:
+                shutil.copy2(path, dest_path)
+                log_info(f'复制: {rel_path}', 'Sync-TXT')
+                txt_count += 1
+            except Exception as e:
+                log_error(f'复制失败: {rel_path} - {e}', 'Sync-TXT')
+                error_count += 1
     
     for path in source_path.rglob('*.md'):
         if should_exclude(path, source_path):
@@ -419,7 +442,7 @@ def copy_and_convert_files(source_dir, dest_dir):
         dest_path = dest_dir / rel_path.with_suffix('.html')
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         if dest_path.exists() and dest_path.stat().st_mtime >= path.stat().st_mtime:
-            print(f'[Sync] 跳过(未修改): {rel_path}')
+            log_info(f'跳过(未修改): {rel_path}', 'Sync-MD')
         else:
             try:
                 with open(path, 'r', encoding='utf-8') as f:
@@ -427,12 +450,13 @@ def copy_and_convert_files(source_dir, dest_dir):
                 html = render_content(content, path)
                 with open(dest_path, 'w', encoding='utf-8') as f:
                     f.write(html)
-                print(f'[Sync] 转换: {rel_path} → {rel_path.with_suffix(".html")}')
+                log_info(f'转换: {rel_path} → {rel_path.with_suffix(".html")}', 'Sync-MD')
+                md_count += 1
             except Exception as e:
                 if dest_path.exists():
                     dest_path.unlink()
-                print(f'[Sync] 错误: {rel_path} - {e}')
-                raise
+                log_error(f'转换失败: {rel_path} - {e}', 'Sync-MD')
+                error_count += 1
     
     for path in source_path.rglob('*.docx'):
         if should_exclude(path, source_path):
@@ -441,54 +465,74 @@ def copy_and_convert_files(source_dir, dest_dir):
         dest_path = dest_dir / rel_path.with_suffix('.html')
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         if dest_path.exists() and dest_path.stat().st_mtime >= path.stat().st_mtime:
-            print(f'[Sync] 跳过(未修改): {rel_path}')
+            log_info(f'跳过(未修改): {rel_path}', 'Sync-DOCX')
         else:
             try:
                 html = render_content('', path)
                 with open(dest_path, 'w', encoding='utf-8') as f:
                     f.write(html)
-                print(f'[Sync] 转换: {rel_path} → {rel_path.with_suffix(".html")}')
+                log_info(f'转换: {rel_path} → {rel_path.with_suffix(".html")}', 'Sync-DOCX')
+                docx_count += 1
             except Exception as e:
                 if dest_path.exists():
                     dest_path.unlink()
-                print(f'[Sync] 错误: {rel_path} - {e}')
-                raise
+                log_error(f'转换失败: {rel_path} - {e}', 'Sync-DOCX')
+                error_count += 1
+    
+    log_info(f'文件处理完成: TXT={txt_count}, MD={md_count}, DOCX={docx_count}, ERROR={error_count}', 'Sync-Core')
 
 def generate_index(items, output_file):
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(items, f, ensure_ascii=False, indent=2)
-    print(f'[Sync] 生成索引: {output_file}')
+    try:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+        log_info(f'生成索引: {output_file}', 'Sync-Index')
+    except Exception as e:
+        log_error(f'生成索引失败: {e}', 'Sync-Index')
 
 def main():
+    log_info('=' * 60, 'Sync')
+    log_info('开始同步', 'Sync')
+    log_info('=' * 60, 'Sync')
+    
     root_dir = Path(__file__).parent.parent
     source_dir_name = get_source_dir()
     source_dir = root_dir / source_dir_name
     docs_dir = get_docs_dir()
     index_file = root_dir / 'reader' / 'index.json'
+    github_repo = get_github_repo()
     
-    print(f'[Sync] 开始同步...')
-    print(f'[Sync] 源目录: /{source_dir_name}/')
-    print(f'[Sync] 时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    log_info(f'源目录: /{source_dir_name}/', 'Sync')
+    log_info(f'目标目录: {docs_dir}', 'Sync')
+    log_info(f'索引文件: {index_file}', 'Sync')
+    log_info(f'GitHub 仓库: {github_repo}', 'Sync')
+    log_info(f'时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 'Sync')
     
     if not source_dir.exists():
-        print(f'[Sync] 错误: 源目录不存在 - /{source_dir_name}/')
+        log_error(f'源目录不存在: /{source_dir_name}/', 'Sync')
         return
     
-    print(f'[Sync] 清理已删除的文件...')
+    log_info('清理已删除的文件...', 'Sync')
     cleanup_orphaned_files(source_dir, docs_dir)
     
     items = []
     if source_dir.exists():
+        log_info('扫描目录结构...', 'Sync')
         items = [{
             'type': 'folder',
             'name': source_dir_name,
             'children': scan_directory(source_dir, source_dir)
         }]
+        log_info(f'扫描完成，共 {len(items[0]["children"])} 个项目', 'Sync')
     
+    log_info('复制和转换文件...', 'Sync')
     copy_and_convert_files(source_dir, docs_dir)
+    
+    log_info('生成索引文件...', 'Sync')
     generate_index(items, index_file)
     
-    print(f'[Sync] 完成！共同步 {len(items[0]["children"]) if items else 0} 个文档')
+    log_info('=' * 60, 'Sync')
+    log_info('同步完成！', 'Sync')
+    log_info('=' * 60, 'Sync')
 
 if __name__ == '__main__':
     main()

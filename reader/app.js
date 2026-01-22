@@ -17,6 +17,22 @@
   let searchTimeout = null;
   let config = null;
 
+  const md = window.markdownit({
+    html: true,
+    linkify: true,
+    typographer: true,
+    highlight: function (str, lang) {
+      if (lang && hljs.getLanguage(lang)) {
+        try {
+          return '<pre class="hljs"><code>' +
+                 hljs.highlight(str, { language: lang }).value +
+                 '</code></pre>';
+        } catch (__) {}
+      }
+      return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+    }
+  });
+
   function loadConfig() {
     return fetch('config.json?t=' + Date.now())
       .then(r => r.json())
@@ -261,15 +277,12 @@
     localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     updateThemeIcons();
     
-    if (typeof mermaid !== 'undefined' && document.querySelector('.mermaid')) {
-      const isDark = document.body.classList.contains('dark');
-      mermaid.initialize({
-        startOnLoad: true,
-        theme: isDark ? 'dark' : 'default'
-      });
-      mermaid.run({
-        querySelector: '.mermaid'
-      });
+    const isDark = document.body.classList.contains('dark');
+    const hljsLightTheme = document.getElementById('hljs-light-theme');
+    const hljsDarkTheme = document.getElementById('hljs-dark-theme');
+    if (hljsLightTheme && hljsDarkTheme) {
+      hljsLightTheme.disabled = isDark;
+      hljsDarkTheme.disabled = !isDark;
     }
   }
 
@@ -323,10 +336,6 @@
         if (isMobile()) {
           closeMobileSidebar();
         }
-        
-        if (typeof mermaid !== 'undefined' && document.querySelector('.mermaid')) {
-          mermaid.run();
-        }
       })
       .catch(err => {
         console.log('[App] ' + err.message);
@@ -335,37 +344,17 @@
   };
 
   function renderContent(text) {
-    const lines = text.split('\n');
-    const html = [];
-    
-    for (const line of lines) {
-      const trimmed = line.trim();
-      
-      if (!trimmed) {
-        html.push('<br>');
-        continue;
-      }
-      
-      if (trimmed.startsWith('# ')) {
-        html.push(`<h1>${escapeHtml(trimmed.substring(2))}</h1>`);
-      } else if (trimmed.startsWith('## ')) {
-        html.push(`<h2>${escapeHtml(trimmed.substring(3))}</h2>`);
-      } else if (trimmed.startsWith('### ')) {
-        html.push(`<h3>${escapeHtml(trimmed.substring(4))}</h3>`);
-      } else if (trimmed.startsWith('- ')) {
-        html.push(`<li>${escapeHtml(trimmed.substring(2))}</li>`);
-      } else if (/^\d+\.\s/.test(trimmed)) {
-        html.push(`<li>${escapeHtml(trimmed.replace(/^\d+\.\s*/, ''))}</li>`);
-      } else if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-        html.push(`<p>${escapeHtml(trimmed)}</p>`);
-      } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-        html.push(`<strong>${escapeHtml(trimmed.substring(2, trimmed.length - 2))}</strong>`);
-      } else {
-        html.push(`<p>${escapeHtml(trimmed)}</p>`);
-      }
+    console.log('[Render] 开始解析 Markdown，文本长度:', text.length);
+    const startTime = performance.now();
+    try {
+      const html = md.render(text);
+      const endTime = performance.now();
+      console.log('[Render] Markdown 解析完成，耗时:', (endTime - startTime).toFixed(2), 'ms');
+      return html;
+    } catch (error) {
+      console.error('[Render] Markdown 解析失败:', error);
+      return `<p>Markdown 解析失败: ${error.message}</p>`;
     }
-    
-    return html.join('\n');
   }
 
   function escapeHtml(text) {
@@ -407,13 +396,5 @@
     loadSidebar();
     handleHash();
     initTheme();
-    
-    if (typeof mermaid !== 'undefined') {
-      const isDark = document.body.classList.contains('dark');
-      mermaid.initialize({
-        startOnLoad: true,
-        theme: isDark ? 'dark' : 'default'
-      });
-    }
   });
 })();
