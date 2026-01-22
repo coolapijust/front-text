@@ -404,6 +404,14 @@ body.dark .content a {
   margin: 16px 0;
 }
 
+.content img.docx-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .content del,
 .content s {
   text-decoration: line-through;
@@ -508,7 +516,8 @@ body.dark .content blockquote {
 }
 
 .content table,
-.content table.md-table {
+.content table.md-table,
+.content table.docx-table {
   width: 100%;
   border-collapse: collapse;
   margin: 16px 0;

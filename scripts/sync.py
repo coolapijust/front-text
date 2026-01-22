@@ -242,68 +242,25 @@ def render_table(table_lines):
 
 def convert_docx(docx_path):
     try:
-        from docx import Document
-        doc = Document(docx_path)
-        
-        all_sizes = []
-        for para in doc.paragraphs:
-            for run in para.runs:
-                if run.font.size:
-                    all_sizes.append(run.font.size.pt)
-        
-        if all_sizes:
-            min_size = min(all_sizes)
-            max_size = max(all_sizes)
-        else:
-            min_size, max_size = 12, 24
-        
-        def get_level(size):
-            avg_size = sum(all_sizes) / len(all_sizes) if all_sizes else 12
-            if size > avg_size + 3.0:
-                return 1
-            elif size > avg_size + 2.0:
-                return 2
-            elif size > avg_size + 1.0:
-                return 3
-            else:
-                return 0
-        
-        html = []
-        for para in doc.paragraphs:
-            text = para.text.strip()
-            if not text:
-                html.append('<br>')
-                continue
+        import mammoth
+        with open(docx_path, 'rb') as docx_file:
+            result = mammoth.convert_to_html(docx_file)
+            html = result.value
             
-            para_size = None
-            for run in para.runs:
-                if run.font.size:
-                    para_size = run.font.size.pt
-                    break
+            html = post_process_html(html)
             
-            if para_size:
-                level = get_level(para_size)
-                if level == 1:
-                    html.append(f'<h1>{escape_html(text)}</h1>')
-                elif level == 2:
-                    html.append(f'<h2>{escape_html(text)}</h2>')
-                elif level == 3:
-                    html.append(f'<h3>{escape_html(text)}</h3>')
-                else:
-                    html.append(f'<p>{escape_html(text)}</p>')
-            else:
-                if text.startswith('-'):
-                    html.append(f'<li>{escape_html(text[1:].strip())}</li>')
-                else:
-                    html.append(f'<p>{escape_html(text)}</p>')
-        
-        return '\n'.join(html)
+            return html
     except ImportError:
-        log_error('请安装 python-docx 库: pip install python-docx', 'Sync-DOCX')
-        raise ImportError('请安装 python-docx 库: pip install python-docx')
+        log_error('请安装 mammoth 库: pip install mammoth', 'Sync-DOCX')
+        raise ImportError('请安装 mammoth 库: pip install mammoth')
     except Exception as e:
         log_error(f'Word 文档转换失败: {e}', 'Sync-DOCX')
         raise
+
+def post_process_html(html):
+    html = html.replace('<table>', '<table class="docx-table">')
+    html = html.replace('<img', '<img class="docx-image"')
+    return html
 
 def render_content(content, file_path):
     try:

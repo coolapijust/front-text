@@ -302,7 +302,7 @@ txt/
 
          - name: Install dependencies
            run: |
-             pip install python-docx
+             pip install mammoth
 
          - name: Sync documents
            run: python scripts/sync.py
@@ -364,6 +364,19 @@ txt/
 - 文件名建议使用序号前缀排序：`01-xxx.txt`、`02-xxx.txt`
 
 ## 更新日志
+
+### 2026-01-22 - 集成 mammoth 优化 Word 文档支持
+
+**Word 文档优化：**
+- 集成 mammoth 库，大幅简化 Word 文档转换逻辑
+- 自动支持图片、表格、列表、文本格式、超链接等
+- 移除手动 Word 文档处理逻辑（约 80 行代码减少到约 20 行）
+- 更准确的标题级别识别和格式保留
+
+**依赖变化：**
+- 添加 mammoth 依赖（Word 文档转换）
+- 更新 GitHub Actions workflow，自动安装 mammoth
+- 更新 README.md，添加 mammoth 安装说明
 
 ### 2026-01-22 - 性能优化和智能格式化
 

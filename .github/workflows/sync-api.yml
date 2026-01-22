@@ -45,6 +45,10 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Dependencies
+        run: |
+          pip install -q mammoth
+
       - name: Download TXT Files via API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
