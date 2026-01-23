@@ -493,9 +493,9 @@
     if (!progressTicking) {
       window.requestAnimationFrame(() => {
         if (window.scrollY > 200) {
-          backToTop.style.display = 'block';
+          backToTop.classList.add('visible');
         } else {
-          backToTop.style.display = 'none';
+          backToTop.classList.remove('visible');
         }
 
         const scrollTop = window.scrollY;

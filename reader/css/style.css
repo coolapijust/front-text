@@ -1,3 +1,9 @@
+html {
+  /* Reserve space for scrollbar to prevent content shifting/flickering on long pages */
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -510,9 +516,20 @@ body.dark .content tr:hover {
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(3, 102, 214, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: none;
+  display: flex;
+  /* Always flex */
+  opacity: 0;
+  visibility: hidden;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
+}
+
+#back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 #back-to-top:hover {
