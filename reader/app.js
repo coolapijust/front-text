@@ -325,7 +325,7 @@
 
   window.loadDoc = function(path) {
     const url = `docs/${path}`;
-    viewer.innerHTML = '<p>加载中...</p>';
+    // viewer.innerHTML = '<p>加载中...</p>'; // Animation handles "empty" state visually
     
     fetch(url)
       .then(r => {
@@ -333,24 +333,19 @@
         return r.text();
       })
       .then(content => {
+        // Trigger animation
+        viewer.classList.remove('switching');
+        void viewer.offsetWidth; // Force reflow
+        
         const isHtml = path.endsWith('.html');
-        if (isHtml) {
-          viewer.style.opacity = '0';
-          viewer.style.transform = 'translateY(10px)';
-          viewer.innerHTML = content;
-          setTimeout(() => {
-            viewer.style.opacity = '1';
-            viewer.style.transform = 'translateY(0)';
-          }, 50);
-        } else {
-          viewer.style.opacity = '0';
-          viewer.style.transform = 'translateY(10px)';
-          viewer.innerHTML = renderContent(content);
-          setTimeout(() => {
-            viewer.style.opacity = '1';
-            viewer.style.transform = 'translateY(0)';
-          }, 50);
-        }
+        viewer.innerHTML = isHtml ? content : renderContent(content);
+        
+        viewer.classList.add('switching');
+        
+        // Clean up inline styles if they exist from previous versions
+        viewer.style.opacity = '';
+        viewer.style.transform = '';
+
         window.location.hash = path;
         window.scrollTo({top: 0, behavior: 'smooth'});
         
