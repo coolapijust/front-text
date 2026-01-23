@@ -1,4 +1,4 @@
-(function() {
+(function () {
   const viewer = document.getElementById('viewer');
   const sidebarList = document.getElementById('sidebar-list');
   const sidebarTitle = document.getElementById('sidebar-title');
@@ -13,10 +13,15 @@
   const mobileMenuBtn = document.getElementById('mobile-menu-btn');
   const sidebarOverlay = document.getElementById('sidebar-overlay');
   const readingProgress = document.getElementById('reading-progress');
-  
+
   let allDocs = [];
   let searchTimeout = null;
   let config = null;
+
+  // Cache System
+  const renderedCache = new Map(); // path -> rendered_html
+  const textPool = new Map();      // path -> raw_text
+  const prefetchDebounce = new Map(); // path -> timeout_id
 
   const md = window.markdownit({
     html: true,
@@ -26,9 +31,9 @@
       if (lang && hljs.getLanguage(lang)) {
         try {
           return '<pre class="hljs"><code>' +
-                 hljs.highlight(str, { language: lang }).value +
-                 '</code></pre>';
-        } catch (__) {}
+            hljs.highlight(str, { language: lang }).value +
+            '</code></pre>';
+        } catch (__) { }
       }
       return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
     }
@@ -134,8 +139,33 @@
     const indent = depth > 0 ? `style="padding-left: ${depth * 20}px"` : '';
     const safePath = encodeURIComponent(item.path);
     const safeTitle = escapeHtml(item.title);
-    return `<li class="sub-item" ${indent}><a onclick="window.loadDoc('${safePath}')"><span class="file-icon">📄</span>${safeTitle}</a></li>`;
+    return `<li class="sub-item" ${indent}>
+      <a onclick="window.loadDoc('${safePath}')" onmouseenter="window.prefetchDoc('${safePath}')">
+        <span class="file-icon">📄</span>${safeTitle}
+      </a>
+    </li>`;
   }
+
+  window.prefetchDoc = function (path) {
+    if (renderedCache.has(path) || textPool.has(path)) return;
+
+    if (prefetchDebounce.has(path)) clearTimeout(prefetchDebounce.get(path));
+
+    const timeoutId = setTimeout(() => {
+      const url = `docs/${path}`;
+      fetch(url)
+        .then(r => r.ok ? r.text() : null)
+        .then(text => {
+          if (text) {
+            textPool.set(path, text);
+            console.log('[Prefetch] Cached:', path);
+          }
+        })
+        .finally(() => prefetchDebounce.delete(path));
+    }, 150);
+
+    prefetchDebounce.set(path, timeoutId);
+  };
 
   function attachFolderListeners() {
     document.querySelectorAll('.folder').forEach(folder => {
@@ -172,9 +202,9 @@
         .then(data => renderSidebar(data));
       return;
     }
-    
+
     const lowerQuery = query.toLowerCase();
-    const results = allDocs.filter(doc => 
+    const results = allDocs.filter(doc =>
       doc.title.toLowerCase().includes(lowerQuery) ||
       doc.name.toLowerCase().includes(lowerQuery) ||
       doc.path.toLowerCase().includes(lowerQuery)
@@ -253,10 +283,10 @@
   let lastScrollY = 0;
   let scrollTimeout = null;
   let ticking = false;
-  
+
   window.addEventListener('scroll', () => {
     if (!isMobile()) return;
-    
+
     if (!ticking) {
       window.requestAnimationFrame(() => {
         const currentScrollY = window.scrollY;
@@ -272,7 +302,7 @@
       });
       ticking = true;
     }
-    
+
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
       if (mobileMenuBtn) {
@@ -285,7 +315,7 @@
     document.body.classList.toggle('dark');
     localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     updateThemeIcons();
-    
+
     const isDark = document.body.classList.contains('dark');
     const hljsLightTheme = document.getElementById('hljs-light-theme');
     const hljsDarkTheme = document.getElementById('hljs-dark-theme');
@@ -299,7 +329,7 @@
     const isDark = document.body.classList.contains('dark');
     const sunCircle = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
     const moonCircle = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
-    
+
     [themeToggle, themeToggleCollapsed].forEach(btn => {
       const svg = btn.querySelector('svg');
       svg.innerHTML = isDark ? moonCircle : sunCircle;
@@ -309,13 +339,13 @@
   function initTheme() {
     const savedTheme = localStorage.getItem('theme');
     const savedSidebarCollapsed = localStorage.getItem('sidebarCollapsed');
-    
+
     if (savedTheme === 'dark') {
       document.body.classList.add('dark');
     }
-    
+
     updateThemeIcons();
-    
+
     if (savedSidebarCollapsed === 'true') {
       sidebar.classList.add('collapsed');
       sidebarToggle.querySelector('svg path').setAttribute('d', 'M9 18l6-6-6-6');
@@ -323,41 +353,61 @@
     }
   }
 
-  window.loadDoc = function(path) {
+  window.loadDoc = function (path) {
+    // 1. Check Rendered Cache (Fastest)
+    if (renderedCache.has(path)) {
+      console.log('[Cache] Rendered hit:', path);
+      applyContent(renderedCache.get(path), path);
+      return;
+    }
+
+    // 2. Check Text Pool
+    if (textPool.has(path)) {
+      console.log('[Cache] Text pool hit:', path);
+      const isHtml = path.endsWith('.html');
+      const content = textPool.get(path);
+      const rendered = isHtml ? content : renderContent(content);
+      renderedCache.set(path, rendered);
+      applyContent(rendered, path);
+      return;
+    }
+
+    // 3. Network Fetch
     const url = `docs/${path}`;
-    // viewer.innerHTML = '<p>加载中...</p>'; // Animation handles "empty" state visually
-    
     fetch(url)
       .then(r => {
         if (!r.ok) throw new Error('文件不存在: ' + path);
         return r.text();
       })
       .then(content => {
-        // Trigger animation
-        viewer.classList.remove('switching');
-        void viewer.offsetWidth; // Force reflow
-        
         const isHtml = path.endsWith('.html');
-        viewer.innerHTML = isHtml ? content : renderContent(content);
-        
-        viewer.classList.add('switching');
-        
-        // Clean up inline styles if they exist from previous versions
-        viewer.style.opacity = '';
-        viewer.style.transform = '';
-
-        window.location.hash = path;
-        window.scrollTo({top: 0, behavior: 'smooth'});
-        
-        if (isMobile()) {
-          closeMobileSidebar();
-        }
+        const rendered = isHtml ? content : renderContent(content);
+        renderedCache.set(path, rendered);
+        applyContent(rendered, path);
       })
       .catch(err => {
         console.log('[App] ' + err.message);
         viewer.innerHTML = `<p>文件不存在: ${path}</p>`;
       });
   };
+
+  function applyContent(rendered, path) {
+    viewer.classList.remove('switching');
+    void viewer.offsetWidth; // Force reflow
+
+    viewer.innerHTML = rendered;
+    viewer.classList.add('switching');
+
+    viewer.style.opacity = '';
+    viewer.style.transform = '';
+
+    window.location.hash = path;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (isMobile()) {
+      closeMobileSidebar();
+    }
+  }
 
   function renderContent(text) {
     console.log('[Render] 开始解析 Markdown，文本长度:', text.length);
@@ -366,12 +416,12 @@
       const html = md.render(text);
       const endTime = performance.now();
       console.log('[Render] Markdown 解析完成，耗时:', (endTime - startTime).toFixed(2), 'ms');
-      
+
       const processedHtml = html.replace(/<\/p>\s*<p>/g, '<br>');
-      
+
       setTimeout(() => {
         const codeBlocks = document.querySelectorAll('.content pre.hljs');
-        
+
         const observer = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -400,12 +450,12 @@
           rootMargin: '50px',
           threshold: 0.1
         });
-        
+
         codeBlocks.forEach(block => {
           observer.observe(block);
         });
       }, 100);
-      
+
       return processedHtml;
     } catch (error) {
       console.error('[Render] Markdown 解析失败:', error);
@@ -431,11 +481,11 @@
   }
 
   backToTop.addEventListener('click', () => {
-    window.scrollTo({top: 0, behavior: 'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   let progressTicking = false;
-  
+
   window.addEventListener('scroll', () => {
     if (!progressTicking) {
       window.requestAnimationFrame(() => {
@@ -444,7 +494,7 @@
         } else {
           backToTop.style.display = 'none';
         }
-        
+
         const scrollTop = window.scrollY;
         const docHeight = document.documentElement.scrollHeight - window.innerHeight;
         const scrollPercent = (scrollTop / docHeight) * 100;
