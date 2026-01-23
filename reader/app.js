@@ -242,7 +242,7 @@
   });
 
   function isMobile() {
-    return window.innerWidth <= 768;
+    return window.innerWidth <= 768 || window.screen.width <= 768;
   }
 
   function toggleMobileSidebar() {
@@ -405,7 +405,10 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     if (isMobile()) {
-      closeMobileSidebar();
+      // Small delay to ensure click event doesn't re-trigger open
+      setTimeout(() => {
+        closeMobileSidebar();
+      }, 50);
     }
   }
 

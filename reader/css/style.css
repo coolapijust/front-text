@@ -254,6 +254,12 @@ body.dark .sidebar-collapsed-btns {
   margin-left: 280px;
   padding: 40px 60px;
   max-width: 900px;
+  /* Prevent content from overflowing horizontally and breaking layout */
+  width: 100%;
+  overflow-x: hidden;
+  /* Force text wrapping for long words/URLs */
+  overflow-wrap: break-word;
+  word-break: break-word;
   transition: margin-left 0.3s ease, max-width 0.3s ease;
 }
 
@@ -436,9 +442,13 @@ body.dark .content blockquote {
   border-color: #30363d;
 }
 
+/* Responsive Table Wrapper */
 .content table,
 .content table.md-table {
+  display: block;
   width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-collapse: collapse;
   margin: 16px 0;
   font-size: 14px;
