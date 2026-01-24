@@ -1,5 +1,6 @@
 html {
-  /* Reserve space for scrollbar to prevent content shifting/flickering on long pages */
+  /* Force scrollbar to always be visible to prevent content shifting/flickering */
+  overflow-y: scroll;
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
 }
@@ -17,7 +18,7 @@ body {
   line-height: 1.8;
   color: #24292e;
   background: #f6f8fa;
-  transition: background-color 0.3s, color 0.3s;
+  /* Remove transition to prevent layout jitter during scroll */
 }
 
 body.dark {
@@ -270,7 +271,7 @@ body.dark .sidebar-collapsed-btns {
   /* Force text wrapping for long words/URLs */
   overflow-wrap: break-word;
   word-break: break-word;
-  transition: margin-left 0.3s ease, max-width 0.3s ease;
+  /* Transition removed to prevent jitter during scroll */
 }
 
 body.dark .content {
