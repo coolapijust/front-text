@@ -410,6 +410,87 @@
         closeMobileSidebar();
       }, 50);
     }
+
+    // Apply code enhancements (highlighting and copy button)
+    setTimeout(enhanceCodeBlocks, 100);
+  }
+
+  function enhanceCodeBlocks() {
+    // 0. Render Mermaid diagrams first
+    document.querySelectorAll('.content pre code.language-mermaid, .content pre code[class*="language-mermaid"]').forEach((codeBlock) => {
+      const pre = codeBlock.parentElement;
+      // Skip if already processed
+      if (pre.dataset.mermaidRendered) return;
+
+      try {
+        const mermaidCode = codeBlock.textContent;
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        container.innerHTML = `<div class="mermaid">${mermaidCode}</div>`;
+
+        pre.parentNode.replaceChild(container, pre);
+
+        // Run mermaid on this specific container
+        mermaid.run({ nodes: container.querySelectorAll('.mermaid') });
+      } catch (err) {
+        console.error('[Mermaid] Render failed:', err);
+        // Leave as code block if mermaid fails
+      }
+    });
+
+    // 1. Highlight code blocks that aren't highlighted yet
+    document.querySelectorAll('.content pre code').forEach((block) => {
+      // If parent pre doesn't have hljs class, it might be pre-rendered HTML
+      const pre = block.parentElement;
+      if (!pre.classList.contains('hljs')) {
+        pre.classList.add('hljs');
+        hljs.highlightElement(block);
+      }
+    });
+
+    // 2. Add copy buttons using IntersectionObserver for performance
+    const codeBlocks = document.querySelectorAll('.content pre');
+
+    /* 
+       Note: We use IntersectionObserver here to lazily add the button only when
+       the code block is near/in the viewport. This is an optimization for long docs.
+       Since we fixed the layout shift issue by using fixed positioning for the progress bar,
+       this observer logic is safe to keep and won't cause scroll jitter.
+    */
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const block = entry.target;
+          if (!block.dataset.initialized) {
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = '复制';
+            copyBtn.onclick = () => {
+              const code = block.querySelector('code');
+              if (code) {
+                // Determine text to copy (handle both hljs structure and plain text)
+                const text = code.innerText || code.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                  copyBtn.textContent = '已复制';
+                  setTimeout(() => {
+                    copyBtn.textContent = '复制';
+                  }, 2000);
+                });
+              }
+            };
+            block.appendChild(copyBtn);
+            block.dataset.initialized = 'true';
+          }
+        }
+      });
+    }, {
+      rootMargin: '200px', // Preload buttons a bit earlier
+      threshold: 0
+    });
+
+    codeBlocks.forEach(block => {
+      observer.observe(block);
+    });
   }
 
   function renderContent(text) {
@@ -421,43 +502,6 @@
       console.log('[Render] Markdown 解析完成，耗时:', (endTime - startTime).toFixed(2), 'ms');
 
       const processedHtml = html.replace(/<\/p>\s*<p>/g, '<br>');
-
-      setTimeout(() => {
-        const codeBlocks = document.querySelectorAll('.content pre.hljs');
-
-        const observer = new IntersectionObserver((entries) => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              const block = entry.target;
-              if (!block.dataset.initialized) {
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-btn';
-                copyBtn.textContent = '复制';
-                copyBtn.onclick = () => {
-                  const code = block.querySelector('code');
-                  if (code) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                      copyBtn.textContent = '已复制';
-                      setTimeout(() => {
-                        copyBtn.textContent = '复制';
-                      }, 2000);
-                    });
-                  }
-                };
-                block.appendChild(copyBtn);
-                block.dataset.initialized = 'true';
-              }
-            }
-          });
-        }, {
-          rootMargin: '50px',
-          threshold: 0.1
-        });
-
-        codeBlocks.forEach(block => {
-          observer.observe(block);
-        });
-      }, 100);
 
       return processedHtml;
     } catch (error) {
@@ -509,7 +553,7 @@
   });
 
   if (window.scrollY > 200) {
-    backToTop.style.display = 'block';
+    backToTop.classList.add('visible');
   }
 
   window.addEventListener('hashchange', handleHash);
